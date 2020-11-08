@@ -3,7 +3,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const PublicationSchema = Schema({
+let PublicationSchema = Schema({
     user: {type: Schema.ObjectId, ref: 'User'},
     text: String,
     file: String,
