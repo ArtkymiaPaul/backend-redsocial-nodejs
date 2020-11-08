@@ -6,6 +6,7 @@ const jwt = require('../services/jwt');
 const fs = require('fs');
 const path = require('path');
 let User = require('../models/user');
+let Follow = require('../models/follow');
 const { exists } = require('../models/user');
 
 
@@ -117,8 +118,27 @@ function getUser(req,res){
 
         if(!user) return res.status(404).send({message:"El usuario no existe"});
 
-        return res.status(200).send({user});
+        followThisUser(req.user.sub, userId).then(value => {
+            user.password = undefined;
+            return res.status(200).send({user, following: value.following, followed: value.followed});
+        });
+
     });
+}
+
+async function followThisUser(identity_user_id, user_id){
+    console.log('userid', identity_user_id, 'id', user_id);
+    
+    const following = await Follow.findOne({"user":identity_user_id, "followed": user_id});
+
+    const followed = await Follow.findOne({"user":user_id, "followed": identity_user_id});
+    
+
+
+    return {
+        following,
+        followed
+    };
 }
 
 //Devolver un listado de usuarios paginado
@@ -136,13 +156,68 @@ function getUsers(req, res){
         if(err) return res.status(500).send({message:"Error en la peticion"});
         if(!users) return res.status(404).send({message:"No hay usuarios disponibles"});
 
-        return res.status(200).send({
-            users,
-            total,
-            pages: Math.ceil(total/itemsPerPage)
+
+        followUserIds(identity_user_id).then((value)=>{
+            return res.status(200).send({
+                users,
+                users_following: value.following,
+                users_follow_me: value.followed,
+                total,
+                pages: Math.ceil(total/itemsPerPage)
+            });
         });
     });    
 
+}
+
+async function followUserIds(user_id){
+    const following = await Follow.find({"user": user_id})
+    .select({'_id':0, '__v':0, 'user': 0});
+
+    const followed = await Follow.find({"followed": user_id})
+    .select({'_id':0, '__v':0, 'followed': 0});
+
+    //Procesar following ids
+    let following_clean = [];
+
+    following.forEach((follow)=>{
+        following_clean.push(follow.followed);
+    })
+
+    //Procesar followed ids
+    let followers_clean = [];
+
+    followed.forEach((follow)=>{
+        followers_clean.push(follow.user);
+    })
+
+    return {
+        following: following_clean,
+        followed: followers_clean
+    }
+
+ }
+
+function getCounters(req, res){
+
+    let userId = req.user.sub;
+    if(req.params.id){
+        userId = req.params.id;
+    }
+    getCountFollow(userId).then((value) =>{
+        return res.status(200).send(value);
+    });
+}
+
+async function getCountFollow(user_id){
+    const following = await Follow.count({"user": user_id});
+
+    const followed = await Follow.count({"followed": user_id});
+
+    return {
+        following,
+        followed
+    }
 }
 
 //Edicion de datos de usuario
@@ -229,6 +304,7 @@ module.exports = {
     loginUser,
     getUser,
     getUsers,
+    getCounters,
     updateUser,
     uploadImage,
     getImageFile   
