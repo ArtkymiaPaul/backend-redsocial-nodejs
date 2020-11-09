@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 let User = require('../models/user');
 let Follow = require('../models/follow');
+let Publication = require('../models/publication');
 const { exists } = require('../models/user');
 
 
@@ -214,9 +215,12 @@ async function getCountFollow(user_id){
 
     const followed = await Follow.count({"followed": user_id});
 
+    const publications = await Publication.count({"user":user_id});
+
     return {
         following,
-        followed
+        followed, 
+        publications
     }
 }
 
@@ -265,7 +269,7 @@ function uploadImage(req,res){
             User.findByIdAndUpdate(userId,{image: file_name}, {new:true}, (err, userUpdate) =>{
                 if(err) return res.status(500).send({message:"Error en la peticion"});
 
-                if(!userUpdate) return res.status(500).send({message:"No se ha podido actualizar el usuario"});
+                if(!userUpdate) return res.status(404).send({message:"No se ha podido actualizar el usuario"});
         
                 return res.status(200).send({user:userUpdate});
             });
