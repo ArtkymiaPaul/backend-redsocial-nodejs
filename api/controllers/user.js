@@ -236,13 +236,24 @@ function updateUser(req,res){
         return res.status(500).send({message:'No tienes permiso para actualizar los datos del usuario'})
     }
 
-    User.findByIdAndUpdate(userId, update,{new:true}, (err, userUpdate) =>{
-        if(err) return res.status(500).send({message:"Error en la peticion"});
+    User.find({ $or: [
+        {email:update.email.toLowerCase()},
+        {nick:update.nick.toLowerCase()},
+    ]
+    }).exec((err, users) => {
+        if(users && users.length > 1) return res.status(404).send({message:'Los datos ya estan en uso'});
+        if(err) return res.status(500).send({message:'Ha ocurrido un error en la peticion'});
 
-        if(!userUpdate) return res.status(500).send({message:"No se ha podido actualizar el usuario"});
-
-        return res.status(200).send({user:userUpdate});
+        User.findByIdAndUpdate(userId, update,{new:true}, (err, userUpdate) =>{
+            if(err) return res.status(500).send({message:"Error en la peticion"});
+    
+            if(!userUpdate) return res.status(500).send({message:"No se ha podido actualizar el usuario"});
+    
+            return res.status(200).send({user:userUpdate});
+        });
     });
+
+
 
 }
 
