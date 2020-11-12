@@ -50,13 +50,15 @@ function getFollowingUsers(req,res){
 
         if(!follows) res.status(404).send({message:"No estas siguiendo ningun usuario"});
 
-        return res.status(200).send(
-            {
+        followUserIds(req.user.sub).then((value)=>{
+            return res.status(200).send({
                 total:total,
                 pages: Math.ceil(total,itemsPerPage),
-                follows
-            }
-            );
+                follows,
+                users_following: value.following,
+                users_follow_me: value.followed,
+            });
+        });
     });
 }
 
@@ -76,15 +78,17 @@ function getFollowedUsers(req, res){
     Follow.find({followed:userId}).populate('user').paginate(page,itemsPerPage,(err, follows, total) =>{
         if(err) return res.status(500).send({message:"Error en el servidor"});
 
-        if(!follows) res.status(404).send({message:"No estas te sigue ningun usuario"});
+        if(!follows) res.status(404).send({message:"No te sigue ningun usuario"});
 
-        return res.status(200).send(
-            {
+        followUserIds(req.user.sub).then((value)=>{
+            return res.status(200).send({
                 total:total,
                 pages: Math.ceil(total,itemsPerPage),
-                follows
-            }
-            );
+                follows,
+                users_following: value.following,
+                users_follow_me: value.followed,
+            });
+        });
     });
 }
 
@@ -107,6 +111,34 @@ function getMyFollows(req, res){
     });
 
 }
+
+async function followUserIds(user_id){
+    const following = await Follow.find({"user": user_id})
+    .select({'_id':0, '__v':0, 'user': 0});
+
+    const followed = await Follow.find({"followed": user_id})
+    .select({'_id':0, '__v':0, 'followed': 0});
+
+    //Procesar following ids
+    let following_clean = [];
+
+    following.forEach((follow)=>{
+        following_clean.push(follow.followed);
+    })
+
+    //Procesar followed ids
+    let followers_clean = [];
+
+    followed.forEach((follow)=>{
+        followers_clean.push(follow.user);
+    })
+
+    return {
+        following: following_clean,
+        followed: followers_clean
+    }
+
+ }
 
 
 module.exports = {
